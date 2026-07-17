@@ -244,7 +244,7 @@ while :; do
 done
 
 # ============================================================================
-step "Stage 2: Hardware scan"
+step "Stage 2: Hardware scan & PCI validation"
 # ============================================================================
 GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
 CX7_FUNCS=$(lspci -d 15b3: 2>/dev/null | wc -l)
@@ -261,6 +261,26 @@ echo "Unified memory total: $MEM_TOTAL"
 (( CX7_FUNCS == 4 )) || fail_stop "Unexpected CX-7 PCI function count: $CX7_FUNCS (expected 4)." \
     "NIC not fully enumerated - reboot the system." \
     "Check dmesg for PCIe errors."
+
+echo ""
+echo "--- Validating PCI capability and status for CX-7 devices ---"
+CX7_PCI_ADDRS=$(lspci -d 15b3: -nn | awk '{print $1}')
+for addr in $CX7_PCI_ADDRS; do
+    echo "Checking PCI address: $addr"
+    sudo lspci -vv -s "$addr" 2>/dev/null | grep -iE "LnkCap|LnkSta"
+    echo "  Expected: Speed 32GT/s, Width x4"
+done
+
+echo ""
+echo "--- Generating hardware topology map ---"
+if ! command -v lstopo >/dev/null 2>&1; then
+    echo "Installing hwloc module for lstopo..."
+    sudo apt-get install hwloc -y || warn "Failed to install hwloc. Skipping topology generation."
+fi
+
+if command -v lstopo >/dev/null 2>&1; then
+    lstopo topology.png && ok "Topology saved to $(pwd)/topology.png" || warn "Failed to generate topology.png"
+fi
 
 # Select the Up enp1* interface (per playbook: use enp1*, disregard enP2p*)
 IFACE=$(ibdev2netdev | grep '(Up)' | awk '{print $5}' | grep '^enp1' | sort | tail -1)

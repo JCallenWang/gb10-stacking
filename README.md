@@ -20,3 +20,10 @@ Based on the official NVIDIA playbooks:
 ## Scripts
 
 - `spark_nccl_setup.sh`: The main script for setting up the environment.
+
+## Validation & Hardware checks
+
+The script now includes additional hardware and topology validation:
+- Validates the PCI addresses for CX-7 (`lspci -d 15b3: -nn`).
+- Checks PCI lane and speed capability (`LnkCap` / `LnkSta`) expecting **Speed 32GT/s, Width x4**.
+- Automatically installs `hwloc` (`sudo apt-get install hwloc -y`) and exports the hardware topology as a PNG image (`topology.png`) into the current working directory.
